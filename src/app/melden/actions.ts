@@ -1,9 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { schoolsForType, type SchoolType } from "@/lib/schools";
-import { slotsForType } from "@/lib/slots";
-import { findSchoolId, findSlotId, replaceSchoolEntries } from "@/lib/entries";
+import { schoolsForType } from "@/lib/schools";
+import { getSlots } from "@/lib/dbSlots";
+import { findSchoolId, replaceSchoolEntries } from "@/lib/entries";
 
 export async function submitMeldung(formData: FormData): Promise<void> {
   const type = formData.get("type");
@@ -15,25 +15,22 @@ export async function submitMeldung(formData: FormData): Promise<void> {
     throw new Error("Bitte eine Schule auswählen");
   }
 
-  const validSchool = schoolsForType(type as SchoolType).find(
-    (s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue,
-  );
+  const validSchool = schoolsForType(type).find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
   if (!validSchool) {
     throw new Error("Unbekannte Schule");
   }
 
-  const schoolId = await findSchoolId(type as SchoolType, validSchool.name, validSchool.ort);
+  const schoolId = await findSchoolId(type, validSchool.name, validSchool.ort);
   if (!schoolId) {
     throw new Error("Schule nicht in der Datenbank gefunden – bitte Admin kontaktieren");
   }
 
-  const typeSlots = slotsForType(type as SchoolType);
+  const typeSlots = await getSlots(type);
   const selectedSlotIds: number[] = [];
   for (const slot of typeSlots) {
     const key = `${slot.groupLabel}::${slot.subLabel ?? ""}`;
     if (formData.get(`slot:${key}`) === "on") {
-      const slotId = await findSlotId(type as SchoolType, slot.groupLabel, slot.subLabel);
-      if (slotId) selectedSlotIds.push(slotId);
+      selectedSlotIds.push(slot.id);
     }
   }
 

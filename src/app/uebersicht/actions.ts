@@ -2,7 +2,6 @@
 
 import { isAuthed, destroySession } from "@/lib/auth";
 import { schoolsForType, type SchoolType } from "@/lib/schools";
-import { slotsForType } from "@/lib/slots";
 import { findSchoolId, findSlotId, setEntry } from "@/lib/entries";
 import { redirect } from "next/navigation";
 
@@ -22,13 +21,16 @@ export async function toggleEntry(
   }
 
   const school = schoolsForType(type).find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
-  const slot = slotsForType(type).find((s) => `${s.groupLabel}::${s.subLabel ?? ""}` === slotKeyValue);
-  if (!school || !slot) {
-    throw new Error("Unbekannte Schule oder Wettkampf");
+  if (!school) {
+    throw new Error("Unbekannte Schule");
   }
+  const sep = slotKeyValue.indexOf("::");
+  const groupLabel = sep === -1 ? slotKeyValue : slotKeyValue.slice(0, sep);
+  const subLabelRaw = sep === -1 ? "" : slotKeyValue.slice(sep + 2);
+  const subLabel = subLabelRaw === "" ? null : subLabelRaw;
 
   const schoolId = await findSchoolId(type, school.name, school.ort);
-  const slotId = await findSlotId(type, slot.groupLabel, slot.subLabel);
+  const slotId = await findSlotId(type, groupLabel, subLabel);
   if (!schoolId || !slotId) {
     throw new Error("Datensatz nicht gefunden");
   }

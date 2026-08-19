@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { schoolKey, schoolsForType } from "@/lib/schools";
-import { groupSlots, slotKey, slotsForType } from "@/lib/slots";
+import { groupSlots, slotKey } from "@/lib/slots";
+import { getSlots } from "@/lib/dbSlots";
 import { getCheckedKeys } from "@/lib/entries";
 import { OverviewTable } from "./OverviewTable";
 import { logoutAction } from "./actions";
@@ -12,7 +14,8 @@ async function buildSection(type: "GS" | "WF") {
     name: s.name,
     ort: s.ort,
   }));
-  const groups = groupSlots(slotsForType(type)).map((g) => ({
+  const dbSlots = await getSlots(type);
+  const groups = groupSlots(dbSlots).map((g) => ({
     groupLabel: g.groupLabel,
     items: g.items.map((it) => ({ key: slotKey(it), subLabel: it.subLabel })),
   }));
@@ -32,11 +35,16 @@ export default async function Page() {
             Zellen sind klickbar – Änderungen werden sofort gespeichert (für Nachmeldungen/Absagen).
           </p>
         </div>
-        <form action={logoutAction}>
-          <button type="submit" className="text-sm font-medium text-slate-500 hover:text-slate-800">
-            Abmelden
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Link href="/uebersicht/wettkaempfe" className="text-sm font-medium text-blue-600 hover:underline">
+            Wettkämpfe verwalten
+          </Link>
+          <form action={logoutAction}>
+            <button type="submit" className="text-sm font-medium text-slate-500 hover:text-slate-800">
+              Abmelden
+            </button>
+          </form>
+        </div>
       </div>
 
       <section className="mb-12">

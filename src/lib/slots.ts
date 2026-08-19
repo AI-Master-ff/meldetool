@@ -114,19 +114,15 @@ export function slotKey(s: { groupLabel: string; subLabel: string | null }): str
   return `${s.groupLabel}::${s.subLabel ?? ""}`;
 }
 
-export function slotsForType(type: SchoolType): SlotDef[] {
-  return slots.filter((s) => s.type === type);
-}
-
-export interface SlotGroup {
+export interface SlotGroup<T extends { groupLabel: string }> {
   groupLabel: string;
-  items: SlotDef[];
+  items: T[];
 }
 
 // Fasst aufeinanderfolgende Slots mit gleichem groupLabel zusammen, für
 // gruppierte Tabellenköpfe (z.B. "Fußball" über "m / WK I", "m / WK II", ...).
-export function groupSlots(items: SlotDef[]): SlotGroup[] {
-  const groups: SlotGroup[] = [];
+export function groupSlots<T extends { groupLabel: string }>(items: T[]): SlotGroup<T>[] {
+  const groups: SlotGroup<T>[] = [];
   for (const item of items) {
     const last = groups[groups.length - 1];
     if (last && last.groupLabel === item.groupLabel) {

@@ -1,6 +1,12 @@
-import { groupSlots, slotKey, type SlotDef } from "@/lib/slots";
+import { groupSlots, slotKey } from "@/lib/slots";
 
-export function SlotChecklist({ title, items }: { title: string; items: SlotDef[] }) {
+interface ChecklistItem {
+  groupLabel: string;
+  subLabel: string | null;
+  meta: string;
+}
+
+export function SlotChecklist({ title, items }: { title: string; items: ChecklistItem[] }) {
   const groups = groupSlots(items);
 
   return (

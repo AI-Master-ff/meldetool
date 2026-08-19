@@ -44,11 +44,14 @@ export async function runSeed(pool: Pool): Promise<{ schoolCount: number; slotCo
     );
   }
 
+  // Slots werden nach dem ersten Seed über die Verwaltungsseite bearbeitet;
+  // ein erneuter Seed darf bestehende (evtl. manuell geänderte) Zeilen nicht
+  // überschreiben, sondern nur fehlende ergänzen.
   for (const sl of slots) {
     await pool.query(
       `INSERT INTO slots (type, section, group_label, sub_label, meta, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (type, group_label, sub_label) DO UPDATE SET meta = EXCLUDED.meta, sort_order = EXCLUDED.sort_order, section = EXCLUDED.section`,
+       ON CONFLICT (type, group_label, sub_label) DO NOTHING`,
       [sl.type, sl.section, sl.groupLabel, sl.subLabel, sl.meta, sl.sortOrder],
     );
   }
