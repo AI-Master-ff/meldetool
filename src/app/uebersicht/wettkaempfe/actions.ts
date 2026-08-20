@@ -18,6 +18,7 @@ function readSlotFields(formData: FormData) {
   const subLabelRaw = formData.get("subLabel");
   const meta = formData.get("meta");
   const sortOrderRaw = formData.get("sortOrder");
+  const notes = formData.get("notes");
 
   if (section !== "bund" && section !== "gleich") throw new Error("Ungültiger Bereich");
   if (typeof groupLabel !== "string" || groupLabel.trim().length === 0) {
@@ -26,6 +27,7 @@ function readSlotFields(formData: FormData) {
   const subLabel = typeof subLabelRaw === "string" && subLabelRaw.trim() !== "" ? subLabelRaw.trim() : null;
   const metaValue = typeof meta === "string" ? meta.trim() : "";
   const sortOrder = Number(sortOrderRaw);
+  const notesValue = typeof notes === "string" ? notes.trim() : "";
 
   return {
     section,
@@ -33,6 +35,7 @@ function readSlotFields(formData: FormData) {
     subLabel,
     meta: metaValue,
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+    notes: notesValue,
   };
 }
 

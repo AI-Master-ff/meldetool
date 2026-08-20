@@ -5,7 +5,7 @@ import { createSlotAction, deleteSlotAction, updateSlotAction } from "./actions"
 
 export const dynamic = "force-dynamic";
 
-const GRID_COLS = "grid-cols-[1.6fr_1.6fr_1.8fr_110px_90px_150px]";
+const GRID_COLS = "grid-cols-[1.6fr_1.6fr_1.8fr_1.8fr_150px]";
 
 function SlotEditor({ type, slots }: { type: "GS" | "WF"; slots: DbSlot[] }) {
   const nextSortOrder = slots.length > 0 ? Math.max(...slots.map((s) => s.sortOrder)) + 1 : 0;
@@ -16,13 +16,14 @@ function SlotEditor({ type, slots }: { type: "GS" | "WF"; slots: DbSlot[] }) {
         <div className="text-xs font-semibold text-slate-500">Sportart / Wettkampf</div>
         <div className="text-xs font-semibold text-slate-500">Detail (z.B. Altersklasse)</div>
         <div className="text-xs font-semibold text-slate-500">Termin / Ort</div>
-        <div className="text-xs font-semibold text-slate-500">Bereich</div>
-        <div className="text-xs font-semibold text-slate-500">Reihenfolge</div>
+        <div className="text-xs font-semibold text-slate-500">Notiz (z.B. Mannschaftsgröße)</div>
         <div className="text-xs font-semibold text-slate-500">Aktionen</div>
 
         {slots.map((slot) => (
           <form key={slot.id} action={updateSlotAction} className="contents">
             <input type="hidden" name="id" value={slot.id} />
+            <input type="hidden" name="section" value={slot.section} />
+            <input type="hidden" name="sortOrder" value={slot.sortOrder} />
             <input
               name="groupLabel"
               defaultValue={slot.groupLabel}
@@ -40,14 +41,10 @@ function SlotEditor({ type, slots }: { type: "GS" | "WF"; slots: DbSlot[] }) {
               placeholder="Termin / Ort"
               className="rounded border border-slate-300 px-2 py-1 text-sm"
             />
-            <select name="section" defaultValue={slot.section} className="rounded border border-slate-300 px-2 py-1 text-sm">
-              <option value="bund">Bundeswettbewerb</option>
-              <option value="gleich">Gleichgestellt</option>
-            </select>
             <input
-              type="number"
-              name="sortOrder"
-              defaultValue={slot.sortOrder}
+              name="notes"
+              defaultValue={slot.notes}
+              placeholder="z.B. Mannschaftsgröße"
               className="rounded border border-slate-300 px-2 py-1 text-sm"
             />
             <div className="flex items-center gap-2">
@@ -70,14 +67,12 @@ function SlotEditor({ type, slots }: { type: "GS" | "WF"; slots: DbSlot[] }) {
 
         <form action={createSlotAction} className="contents">
           <input type="hidden" name="type" value={type} />
+          <input type="hidden" name="section" value="gleich" />
+          <input type="hidden" name="sortOrder" value={nextSortOrder} />
           <input name="groupLabel" placeholder="Neue Sportart / Wettkampf" required className="rounded border border-slate-300 px-2 py-1 text-sm" />
           <input name="subLabel" placeholder="Detail (optional)" className="rounded border border-slate-300 px-2 py-1 text-sm" />
           <input name="meta" placeholder="Termin / Ort (optional)" className="rounded border border-slate-300 px-2 py-1 text-sm" />
-          <select name="section" defaultValue="gleich" className="rounded border border-slate-300 px-2 py-1 text-sm">
-            <option value="bund">Bundeswettbewerb</option>
-            <option value="gleich">Gleichgestellt</option>
-          </select>
-          <input type="number" name="sortOrder" defaultValue={nextSortOrder} className="rounded border border-slate-300 px-2 py-1 text-sm" />
+          <input name="notes" placeholder="Notiz (optional)" className="rounded border border-slate-300 px-2 py-1 text-sm" />
           <button
             type="submit"
             className="rounded bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700"
