@@ -13,6 +13,30 @@ export async function POST(request: Request) {
   return Response.json(result);
 }
 
+// Einmaliger Fix: die zwei echten (mit Meldungen befüllten) Schulzeilen hatten
+// ort=NULL statt "Coswig"; die frisch nachgeseedeten Duplikate ohne Meldungen
+// werden gelöscht, die echten Zeilen bekommen den korrekten Ort.
+export async function PUT(request: Request) {
+  const secret = request.headers.get("x-seed-secret");
+  if (!secret || secret !== process.env.SESSION_SECRET) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  await pool.query(
+    `UPDATE schools SET ort = 'Coswig' WHERE name IN ('Coswig-Brockwitz', 'EVS Coswig (Primarstufe)') AND type = 'GS' AND ort IS NULL`,
+  );
+  await pool.query(
+    `DELETE FROM schools WHERE name IN ('Coswig-Brockwitz', 'EVS Coswig (Primarstufe)') AND type = 'GS' AND ort = 'Coswig' AND id NOT IN (
+      SELECT school_id FROM entries
+    )`,
+  );
+
+  const res = await pool.query(
+    `SELECT id, type, name, ort FROM schools WHERE name IN ('Coswig-Brockwitz', 'EVS Coswig (Primarstufe)')`,
+  );
+  return Response.json(res.rows);
+}
+
 export async function GET(request: Request) {
   const secret = request.headers.get("x-seed-secret");
   if (!secret || secret !== process.env.SESSION_SECRET) {
