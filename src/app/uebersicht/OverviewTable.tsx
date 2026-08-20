@@ -243,7 +243,7 @@ export function OverviewTable({
                         }}
                         aria-pressed={isChecked}
                         title={comment ? `Kommentar: ${comment}` : "Rechtsklick für Kommentar"}
-                        className={`h-8 w-full transition-colors ${
+                        className={`relative h-8 w-full transition-colors ${
                           isChecked
                             ? "bg-blue-600 text-white hover:bg-blue-700"
                             : comment
@@ -252,6 +252,9 @@ export function OverviewTable({
                         } ${isPending ? "opacity-50" : ""}`}
                       >
                         {isChecked ? "✓" : comment ? "●" : "·"}
+                        {comment && isChecked ? (
+                          <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-amber-400 ring-1 ring-white" />
+                        ) : null}
                       </button>
                     </td>
                   );
