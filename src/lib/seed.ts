@@ -33,6 +33,13 @@ CREATE TABLE IF NOT EXISTS entries (
 
 ALTER TABLE entries ADD COLUMN IF NOT EXISTS checked BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE entries ADD COLUMN IF NOT EXISTS comment TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+INSERT INTO app_settings (key, value) VALUES ('registration_locked', 'false') ON CONFLICT (key) DO NOTHING;
 `;
 
 export async function runSeed(pool: Pool): Promise<{ schoolCount: number; slotCount: number }> {

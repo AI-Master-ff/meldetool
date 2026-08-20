@@ -4,7 +4,9 @@ import { groupSlots, slotKey } from "@/lib/slots";
 import { getSlots } from "@/lib/dbSlots";
 import { getSchools } from "@/lib/dbSchools";
 import { getCheckedKeys, getEntryComments } from "@/lib/entries";
+import { isRegistrationLocked } from "@/lib/settings";
 import { OverviewTable } from "./OverviewTable";
+import { RegistrationLockToggle } from "./RegistrationLockToggle";
 import { logoutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +36,7 @@ async function buildSection(type: "GS" | "WF") {
 }
 
 export default async function Page() {
-  const [gs, wf] = await Promise.all([buildSection("GS"), buildSection("WF")]);
+  const [gs, wf, locked] = await Promise.all([buildSection("GS"), buildSection("WF"), isRegistrationLocked()]);
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10">
@@ -47,6 +49,7 @@ export default async function Page() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <RegistrationLockToggle initialLocked={locked} />
           <Link href="/uebersicht/wettkaempfe" className="text-sm font-medium text-blue-600 hover:underline">
             Wettkämpfe verwalten
           </Link>
@@ -57,6 +60,11 @@ export default async function Page() {
           </form>
         </div>
       </div>
+      {locked ? (
+        <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          Die Meldung ist für Schulen aktuell gesperrt – die Formulare zeigen nur einen Hinweis an.
+        </p>
+      ) : null}
 
       <section className="mb-12">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">Grundschulen</h2>

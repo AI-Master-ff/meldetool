@@ -4,8 +4,13 @@ import { redirect } from "next/navigation";
 import { getSlots } from "@/lib/dbSlots";
 import { getSchools } from "@/lib/dbSchools";
 import { replaceSchoolEntries } from "@/lib/entries";
+import { isRegistrationLocked } from "@/lib/settings";
 
 export async function submitMeldung(formData: FormData): Promise<void> {
+  if (await isRegistrationLocked()) {
+    throw new Error("Die Meldefrist ist beendet, es können keine Meldungen mehr abgegeben werden.");
+  }
+
   const type = formData.get("type");
   if (type !== "GS" && type !== "WF") {
     throw new Error("Ungültiger Formulartyp");

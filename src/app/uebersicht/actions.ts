@@ -5,6 +5,7 @@ import { isAuthed, destroySession } from "@/lib/auth";
 import type { SchoolType } from "@/lib/schools";
 import { getSchools, updateSchool } from "@/lib/dbSchools";
 import { findSlotId, setEntry, setEntryComment } from "@/lib/entries";
+import { setRegistrationLocked } from "@/lib/settings";
 import { redirect } from "next/navigation";
 
 export async function logoutAction(): Promise<void> {
@@ -89,6 +90,18 @@ export async function updateSchoolAction(
   }
 
   await updateSchool(school.id, { name: newName.trim(), ort: newOrt.trim() === "" ? null : newOrt.trim() });
+  revalidatePath("/uebersicht");
+  revalidatePath("/melden/grundschule");
+  revalidatePath("/melden/weiterfuehrend");
+  return { ok: true };
+}
+
+export async function toggleRegistrationLockAction(locked: boolean): Promise<{ ok: boolean }> {
+  if (!(await isAuthed())) {
+    throw new Error("Nicht angemeldet");
+  }
+
+  await setRegistrationLocked(locked);
   revalidatePath("/uebersicht");
   revalidatePath("/melden/grundschule");
   revalidatePath("/melden/weiterfuehrend");
