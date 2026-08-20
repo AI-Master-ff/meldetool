@@ -54,6 +54,23 @@ export async function setEntry(schoolId: number, slotId: number, checked: boolea
   }
 }
 
+export async function setSchoolComment(schoolId: number, comment: string): Promise<void> {
+  await pool.query(`UPDATE schools SET comment = $2 WHERE id = $1`, [schoolId, comment]);
+}
+
+// Kommentare je Schule (schoolKey -> Kommentartext) für einen Schultyp.
+export async function getComments(type: SchoolType): Promise<Map<string, string>> {
+  const res = await pool.query<{ name: string; ort: string | null; comment: string }>(
+    `SELECT name, ort, comment FROM schools WHERE type = $1`,
+    [type],
+  );
+  const map = new Map<string, string>();
+  for (const row of res.rows) {
+    map.set(schoolKey({ name: row.name, ort: row.ort }), row.comment ?? "");
+  }
+  return map;
+}
+
 // Menge aller "schoolKey|slotKey" Kombinationen, die für einen Schultyp angehakt sind.
 export async function getCheckedKeys(type: SchoolType): Promise<Set<string>> {
   const res = await pool.query<{

@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS entries (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (school_id, slot_id)
 );
+
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS comment TEXT NOT NULL DEFAULT '';
 `;
 
 export async function runSeed(pool: Pool): Promise<{ schoolCount: number; slotCount: number }> {

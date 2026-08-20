@@ -2,24 +2,28 @@ import Link from "next/link";
 import { schoolKey, schoolsForType } from "@/lib/schools";
 import { groupSlots, slotKey } from "@/lib/slots";
 import { getSlots } from "@/lib/dbSlots";
-import { getCheckedKeys } from "@/lib/entries";
+import { getCheckedKeys, getComments } from "@/lib/entries";
 import { OverviewTable } from "./OverviewTable";
 import { logoutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 async function buildSection(type: "GS" | "WF") {
+  const [dbSlots, checkedSet, comments] = await Promise.all([
+    getSlots(type),
+    getCheckedKeys(type),
+    getComments(type),
+  ]);
   const schools = schoolsForType(type).map((s) => ({
     key: schoolKey(s),
     name: s.name,
     ort: s.ort,
+    comment: comments.get(schoolKey(s)) ?? "",
   }));
-  const dbSlots = await getSlots(type);
   const groups = groupSlots(dbSlots).map((g) => ({
     groupLabel: g.groupLabel,
     items: g.items.map((it) => ({ key: slotKey(it), subLabel: it.subLabel })),
   }));
-  const checkedSet = await getCheckedKeys(type);
   return { schools, groups, initialChecked: Array.from(checkedSet) };
 }
 

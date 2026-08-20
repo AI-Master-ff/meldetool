@@ -2,7 +2,7 @@
 
 import { isAuthed, destroySession } from "@/lib/auth";
 import { schoolsForType, type SchoolType } from "@/lib/schools";
-import { findSchoolId, findSlotId, setEntry } from "@/lib/entries";
+import { findSchoolId, findSlotId, setEntry, setSchoolComment } from "@/lib/entries";
 import { redirect } from "next/navigation";
 
 export async function logoutAction(): Promise<void> {
@@ -36,5 +36,27 @@ export async function toggleEntry(
   }
 
   await setEntry(schoolId, slotId, checked);
+  return { ok: true };
+}
+
+export async function updateComment(
+  type: SchoolType,
+  schoolKeyValue: string,
+  comment: string,
+): Promise<{ ok: boolean }> {
+  if (!(await isAuthed())) {
+    throw new Error("Nicht angemeldet");
+  }
+
+  const school = schoolsForType(type).find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
+  if (!school) {
+    throw new Error("Unbekannte Schule");
+  }
+  const schoolId = await findSchoolId(type, school.name, school.ort);
+  if (!schoolId) {
+    throw new Error("Datensatz nicht gefunden");
+  }
+
+  await setSchoolComment(schoolId, comment);
   return { ok: true };
 }
