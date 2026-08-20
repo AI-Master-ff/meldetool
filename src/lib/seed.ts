@@ -47,27 +47,35 @@ ALTER TABLE slots ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '';
 export async function runSeed(pool: Pool): Promise<{ schoolCount: number; slotCount: number }> {
   await pool.query(SCHEMA_SQL);
 
-  // Schulen werden nach dem ersten Seed über die Verwaltungsseite bearbeitet
-  // (z.B. umbenannt); ein erneuter Seed darf das nicht überschreiben.
-  for (const s of schools) {
-    await pool.query(
-      `INSERT INTO schools (type, subtype, name, ort, sort_order)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (type, name, ort) DO NOTHING`,
-      [s.type, s.subtype ?? null, s.name, s.ort, s.sortOrder],
-    );
+  // Schulen und Wettkämpfe werden nach dem ersten Seed über die Verwaltungsseite
+  // bearbeitet (umbenannt, gelöscht, neu angelegt). "Fehlende ergänzen" ist dafür
+  // nicht sicher: sobald jemand z.B. eine Schule umbenennt, taucht ihr alter Name
+  // beim nächsten Seed wieder als "fehlend" auf und würde als leere Karteileiche
+  // neu angelegt. Deshalb wird hier nur beim allerersten Mal (leere Tabelle)
+  // befüllt; jeder weitere Aufruf (z.B. für Schema-Migrationen) lässt die Daten
+  // unangetastet.
+  const schoolCountBefore = await pool.query("SELECT count(*) FROM schools");
+  if (Number(schoolCountBefore.rows[0].count) === 0) {
+    for (const s of schools) {
+      await pool.query(
+        `INSERT INTO schools (type, subtype, name, ort, sort_order)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (type, name, ort) DO NOTHING`,
+        [s.type, s.subtype ?? null, s.name, s.ort, s.sortOrder],
+      );
+    }
   }
 
-  // Slots werden nach dem ersten Seed über die Verwaltungsseite bearbeitet;
-  // ein erneuter Seed darf bestehende (evtl. manuell geänderte) Zeilen nicht
-  // überschreiben, sondern nur fehlende ergänzen.
-  for (const sl of slots) {
-    await pool.query(
-      `INSERT INTO slots (type, section, group_label, sub_label, meta, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (type, group_label, sub_label) DO NOTHING`,
-      [sl.type, sl.section, sl.groupLabel, sl.subLabel, sl.meta, sl.sortOrder],
-    );
+  const slotCountBefore = await pool.query("SELECT count(*) FROM slots");
+  if (Number(slotCountBefore.rows[0].count) === 0) {
+    for (const sl of slots) {
+      await pool.query(
+        `INSERT INTO slots (type, section, group_label, sub_label, meta, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (type, group_label, sub_label) DO NOTHING`,
+        [sl.type, sl.section, sl.groupLabel, sl.subLabel, sl.meta, sl.sortOrder],
+      );
+    }
   }
 
   const schoolCount = await pool.query("SELECT count(*) FROM schools");
