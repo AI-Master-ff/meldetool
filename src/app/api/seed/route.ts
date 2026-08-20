@@ -23,12 +23,12 @@ export async function PUT(request: Request) {
   }
 
   await pool.query(
-    `UPDATE schools SET ort = 'Coswig' WHERE name IN ('Coswig-Brockwitz', 'EVS Coswig (Primarstufe)') AND type = 'GS' AND ort IS NULL`,
-  );
-  await pool.query(
     `DELETE FROM schools WHERE name IN ('Coswig-Brockwitz', 'EVS Coswig (Primarstufe)') AND type = 'GS' AND ort = 'Coswig' AND id NOT IN (
       SELECT school_id FROM entries
     )`,
+  );
+  await pool.query(
+    `UPDATE schools SET ort = 'Coswig' WHERE name IN ('Coswig-Brockwitz', 'EVS Coswig (Primarstufe)') AND type = 'GS' AND ort IS NULL`,
   );
 
   const res = await pool.query(
