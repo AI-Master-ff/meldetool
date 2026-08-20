@@ -4,6 +4,7 @@ interface ChecklistItem {
   groupLabel: string;
   subLabel: string | null;
   meta: string;
+  notes: string;
 }
 
 export function SlotChecklist({ title, items }: { title: string; items: ChecklistItem[] }) {
@@ -35,7 +36,10 @@ export function SlotChecklist({ title, items }: { title: string; items: Checklis
                         name={inputName}
                         className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
-                      {item.subLabel ?? "Teilnahme"}
+                      <span>
+                        {item.subLabel ?? "Teilnahme"}
+                        {item.notes ? <span className="text-slate-500 italic"> – {item.notes}</span> : null}
+                      </span>
                     </label>
                   );
                 })}
