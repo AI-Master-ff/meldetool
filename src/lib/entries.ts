@@ -22,15 +22,19 @@ export async function findSlotId(
   return res.rows[0]?.id ?? null;
 }
 
-// Ersetzt alle Einträge einer Schule (für ihren Typ) durch die übergebene Auswahl.
+// Ersetzt die Anmeldungen einer Schule durch die übergebene Auswahl. Zeilen
+// werden nie gelöscht (nur auf checked=false gesetzt), damit Kommentare zu
+// einzelnen Wettkämpfen erhalten bleiben, auch wenn die Schule sich erneut
+// (anders) meldet.
 export async function replaceSchoolEntries(schoolId: number, slotIds: number[]): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query(`DELETE FROM entries WHERE school_id = $1`, [schoolId]);
+    await client.query(`UPDATE entries SET checked = false WHERE school_id = $1`, [schoolId]);
     for (const slotId of slotIds) {
       await client.query(
-        `INSERT INTO entries (school_id, slot_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        `INSERT INTO entries (school_id, slot_id, checked) VALUES ($1, $2, true)
+         ON CONFLICT (school_id, slot_id) DO UPDATE SET checked = true`,
         [schoolId, slotId],
       );
     }
@@ -44,34 +48,22 @@ export async function replaceSchoolEntries(schoolId: number, slotIds: number[]):
 }
 
 export async function setEntry(schoolId: number, slotId: number, checked: boolean): Promise<void> {
-  if (checked) {
-    await pool.query(`INSERT INTO entries (school_id, slot_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [
-      schoolId,
-      slotId,
-    ]);
-  } else {
-    await pool.query(`DELETE FROM entries WHERE school_id = $1 AND slot_id = $2`, [schoolId, slotId]);
-  }
-}
-
-export async function setSchoolComment(schoolId: number, comment: string): Promise<void> {
-  await pool.query(`UPDATE schools SET comment = $2 WHERE id = $1`, [schoolId, comment]);
-}
-
-// Kommentare je Schule (schoolKey -> Kommentartext) für einen Schultyp.
-export async function getComments(type: SchoolType): Promise<Map<string, string>> {
-  const res = await pool.query<{ name: string; ort: string | null; comment: string }>(
-    `SELECT name, ort, comment FROM schools WHERE type = $1`,
-    [type],
+  await pool.query(
+    `INSERT INTO entries (school_id, slot_id, checked) VALUES ($1, $2, $3)
+     ON CONFLICT (school_id, slot_id) DO UPDATE SET checked = $3`,
+    [schoolId, slotId, checked],
   );
-  const map = new Map<string, string>();
-  for (const row of res.rows) {
-    map.set(schoolKey({ name: row.name, ort: row.ort }), row.comment ?? "");
-  }
-  return map;
 }
 
-// Menge aller "schoolKey|slotKey" Kombinationen, die für einen Schultyp angehakt sind.
+export async function setEntryComment(schoolId: number, slotId: number, comment: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO entries (school_id, slot_id, checked, comment) VALUES ($1, $2, false, $3)
+     ON CONFLICT (school_id, slot_id) DO UPDATE SET comment = $3`,
+    [schoolId, slotId, comment],
+  );
+}
+
+// Menge aller "schoolKey||slotKey" Kombinationen, die für einen Schultyp angehakt sind.
 export async function getCheckedKeys(type: SchoolType): Promise<Set<string>> {
   const res = await pool.query<{
     school_name: string;
@@ -83,7 +75,7 @@ export async function getCheckedKeys(type: SchoolType): Promise<Set<string>> {
      FROM entries e
      JOIN schools s ON s.id = e.school_id
      JOIN slots sl ON sl.id = e.slot_id
-     WHERE s.type = $1`,
+     WHERE s.type = $1 AND e.checked = true`,
     [type],
   );
 
@@ -94,4 +86,30 @@ export async function getCheckedKeys(type: SchoolType): Promise<Set<string>> {
     set.add(`${sk}||${slk}`);
   }
   return set;
+}
+
+// Kommentare je "schoolKey||slotKey" (nur nicht-leere) für einen Schultyp.
+export async function getEntryComments(type: SchoolType): Promise<Map<string, string>> {
+  const res = await pool.query<{
+    school_name: string;
+    school_ort: string | null;
+    group_label: string;
+    sub_label: string | null;
+    comment: string;
+  }>(
+    `SELECT s.name AS school_name, s.ort AS school_ort, sl.group_label, sl.sub_label, e.comment
+     FROM entries e
+     JOIN schools s ON s.id = e.school_id
+     JOIN slots sl ON sl.id = e.slot_id
+     WHERE s.type = $1 AND e.comment <> ''`,
+    [type],
+  );
+
+  const map = new Map<string, string>();
+  for (const row of res.rows) {
+    const sk = schoolKey({ name: row.school_name, ort: row.school_ort });
+    const slk = slotKey({ groupLabel: row.group_label, subLabel: row.sub_label });
+    map.set(`${sk}||${slk}`, row.comment);
+  }
+  return map;
 }

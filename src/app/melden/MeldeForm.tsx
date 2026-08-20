@@ -1,10 +1,20 @@
-import { schoolsForType, type SchoolType } from "@/lib/schools";
+import type { SchoolType } from "@/lib/schools";
 import type { DbSlot } from "@/lib/dbSlots";
+import type { DbSchool } from "@/lib/dbSchools";
 import { SlotChecklist } from "@/components/SlotChecklist";
 import { submitMeldung } from "./actions";
 
-export function MeldeForm({ type, title, slots }: { type: SchoolType; title: string; slots: DbSlot[] }) {
-  const schoolOptions = schoolsForType(type);
+export function MeldeForm({
+  type,
+  title,
+  slots,
+  schoolOptions,
+}: {
+  type: SchoolType;
+  title: string;
+  slots: DbSlot[];
+  schoolOptions: DbSchool[];
+}) {
   const bundSlots = slots.filter((s) => s.section === "bund");
   const gleichSlots = slots.filter((s) => s.section === "gleich");
 

@@ -31,17 +31,20 @@ CREATE TABLE IF NOT EXISTS entries (
   PRIMARY KEY (school_id, slot_id)
 );
 
-ALTER TABLE schools ADD COLUMN IF NOT EXISTS comment TEXT NOT NULL DEFAULT '';
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS checked BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE entries ADD COLUMN IF NOT EXISTS comment TEXT NOT NULL DEFAULT '';
 `;
 
 export async function runSeed(pool: Pool): Promise<{ schoolCount: number; slotCount: number }> {
   await pool.query(SCHEMA_SQL);
 
+  // Schulen werden nach dem ersten Seed über die Verwaltungsseite bearbeitet
+  // (z.B. umbenannt); ein erneuter Seed darf das nicht überschreiben.
   for (const s of schools) {
     await pool.query(
       `INSERT INTO schools (type, subtype, name, ort, sort_order)
        VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (type, name, ort) DO UPDATE SET sort_order = EXCLUDED.sort_order, subtype = EXCLUDED.subtype`,
+       ON CONFLICT (type, name, ort) DO NOTHING`,
       [s.type, s.subtype ?? null, s.name, s.ort, s.sortOrder],
     );
   }

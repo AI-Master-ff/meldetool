@@ -1,13 +1,22 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { isAuthed, destroySession } from "@/lib/auth";
-import { schoolsForType, type SchoolType } from "@/lib/schools";
-import { findSchoolId, findSlotId, setEntry, setSchoolComment } from "@/lib/entries";
+import type { SchoolType } from "@/lib/schools";
+import { getSchools, updateSchool } from "@/lib/dbSchools";
+import { findSlotId, setEntry, setEntryComment } from "@/lib/entries";
 import { redirect } from "next/navigation";
 
 export async function logoutAction(): Promise<void> {
   await destroySession();
   redirect("/login");
+}
+
+function parseSlotKey(slotKeyValue: string): { groupLabel: string; subLabel: string | null } {
+  const sep = slotKeyValue.indexOf("::");
+  const groupLabel = sep === -1 ? slotKeyValue : slotKeyValue.slice(0, sep);
+  const subLabelRaw = sep === -1 ? "" : slotKeyValue.slice(sep + 2);
+  return { groupLabel, subLabel: subLabelRaw === "" ? null : subLabelRaw };
 }
 
 export async function toggleEntry(
@@ -20,43 +29,68 @@ export async function toggleEntry(
     throw new Error("Nicht angemeldet");
   }
 
-  const school = schoolsForType(type).find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
+  const schools = await getSchools(type);
+  const school = schools.find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
   if (!school) {
     throw new Error("Unbekannte Schule");
   }
-  const sep = slotKeyValue.indexOf("::");
-  const groupLabel = sep === -1 ? slotKeyValue : slotKeyValue.slice(0, sep);
-  const subLabelRaw = sep === -1 ? "" : slotKeyValue.slice(sep + 2);
-  const subLabel = subLabelRaw === "" ? null : subLabelRaw;
-
-  const schoolId = await findSchoolId(type, school.name, school.ort);
+  const { groupLabel, subLabel } = parseSlotKey(slotKeyValue);
   const slotId = await findSlotId(type, groupLabel, subLabel);
-  if (!schoolId || !slotId) {
-    throw new Error("Datensatz nicht gefunden");
+  if (!slotId) {
+    throw new Error("Wettkampf nicht gefunden");
   }
 
-  await setEntry(schoolId, slotId, checked);
+  await setEntry(school.id, slotId, checked);
   return { ok: true };
 }
 
-export async function updateComment(
+export async function updateEntryComment(
   type: SchoolType,
   schoolKeyValue: string,
+  slotKeyValue: string,
   comment: string,
 ): Promise<{ ok: boolean }> {
   if (!(await isAuthed())) {
     throw new Error("Nicht angemeldet");
   }
 
-  const school = schoolsForType(type).find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
+  const schools = await getSchools(type);
+  const school = schools.find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
   if (!school) {
     throw new Error("Unbekannte Schule");
   }
-  const schoolId = await findSchoolId(type, school.name, school.ort);
-  if (!schoolId) {
-    throw new Error("Datensatz nicht gefunden");
+  const { groupLabel, subLabel } = parseSlotKey(slotKeyValue);
+  const slotId = await findSlotId(type, groupLabel, subLabel);
+  if (!slotId) {
+    throw new Error("Wettkampf nicht gefunden");
   }
 
-  await setSchoolComment(schoolId, comment);
+  await setEntryComment(school.id, slotId, comment);
+  return { ok: true };
+}
+
+export async function updateSchoolAction(
+  type: SchoolType,
+  schoolKeyValue: string,
+  newName: string,
+  newOrt: string,
+): Promise<{ ok: boolean }> {
+  if (!(await isAuthed())) {
+    throw new Error("Nicht angemeldet");
+  }
+  if (newName.trim().length === 0) {
+    throw new Error("Name darf nicht leer sein");
+  }
+
+  const schools = await getSchools(type);
+  const school = schools.find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
+  if (!school) {
+    throw new Error("Unbekannte Schule");
+  }
+
+  await updateSchool(school.id, { name: newName.trim(), ort: newOrt.trim() === "" ? null : newOrt.trim() });
+  revalidatePath("/uebersicht");
+  revalidatePath("/melden/grundschule");
+  revalidatePath("/melden/weiterfuehrend");
   return { ok: true };
 }
