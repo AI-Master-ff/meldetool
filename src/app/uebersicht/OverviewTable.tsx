@@ -35,6 +35,7 @@ export function OverviewTable({
   const [, startTransition] = useTransition();
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const [editingSchool, setEditingSchool] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [commentEditor, setCommentEditor] = useState<{
     schoolKey: string;
     slotKey: string;
@@ -50,6 +51,7 @@ export function OverviewTable({
   }
 
   function toggle(schoolKey: string, slotKey: string) {
+    if (!editMode) return;
     const ck = cellKey(schoolKey, slotKey);
     const wasChecked = checked.has(ck);
 
@@ -86,6 +88,7 @@ export function OverviewTable({
     slot: { key: string; subLabel: string | null },
     groupLabel: string,
   ) {
+    if (!editMode) return;
     const ck = cellKey(school.key, slot.key);
     const label = `${groupLabel}${slot.subLabel ? " / " + slot.subLabel : ""}`;
     setCommentEditor({
@@ -150,6 +153,22 @@ export function OverviewTable({
 
   return (
     <>
+    <div className="mb-2 flex items-center justify-between">
+      <p className="text-xs text-slate-500">
+        {editMode
+          ? "Bearbeiten aktiv – Klicks in der Tabelle ändern Meldungen."
+          : "Ansicht gesperrt – zum Ändern erst \"Bearbeiten\" aktivieren."}
+      </p>
+      <button
+        type="button"
+        onClick={() => setEditMode((v) => !v)}
+        className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          editMode ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        }`}
+      >
+        {editMode ? "Fertig" : "✎ Bearbeiten"}
+      </button>
+    </div>
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="min-w-max border-collapse text-sm">
         <thead>
@@ -214,15 +233,17 @@ export function OverviewTable({
                           <span className="text-slate-400"> · {school.ort}</span>
                         ) : null}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setEditingSchool(school.key)}
-                        className="shrink-0 text-slate-300 opacity-0 hover:text-slate-600 group-hover:opacity-100"
-                        aria-label="Schule bearbeiten"
-                        title="Schule bearbeiten"
-                      >
-                        ✎
-                      </button>
+                      {editMode ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditingSchool(school.key)}
+                          className="shrink-0 text-slate-300 opacity-0 hover:text-slate-600 group-hover:opacity-100"
+                          aria-label="Schule bearbeiten"
+                          title="Schule bearbeiten"
+                        >
+                          ✎
+                        </button>
+                      ) : null}
                     </div>
                   )}
                 </td>
@@ -242,13 +263,19 @@ export function OverviewTable({
                           openCommentEditor(school, slot, groupLabel);
                         }}
                         aria-pressed={isChecked}
-                        title={comment ? `Kommentar: ${comment}` : "Rechtsklick für Kommentar"}
-                        className={`relative h-8 w-full transition-colors ${
+                        title={
+                          editMode
+                            ? comment
+                              ? `Kommentar: ${comment}`
+                              : "Rechtsklick für Kommentar"
+                            : "Ansicht gesperrt – zum Ändern erst \"Bearbeiten\" aktivieren"
+                        }
+                        className={`relative h-8 w-full transition-colors ${editMode ? "cursor-pointer" : "cursor-default"} ${
                           isChecked
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            ? `bg-blue-600 text-white ${editMode ? "hover:bg-blue-700" : ""}`
                             : comment
-                              ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                              : "text-transparent hover:bg-slate-100"
+                              ? `bg-amber-50 text-amber-600 ${editMode ? "hover:bg-amber-100" : ""}`
+                              : `text-transparent ${editMode ? "hover:bg-slate-100" : ""}`
                         } ${isPending ? "opacity-50" : ""}`}
                       >
                         {isChecked ? "✓" : comment ? "●" : "·"}
