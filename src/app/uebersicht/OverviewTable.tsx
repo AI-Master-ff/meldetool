@@ -43,6 +43,7 @@ export function OverviewTable({
     label: string;
     value: string;
   } | null>(null);
+  const [schoolListPopup, setSchoolListPopup] = useState<{ label: string; names: string[] } | null>(null);
 
   const flatSlots = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
@@ -116,6 +117,14 @@ export function OverviewTable({
     startTransition(async () => {
       await updateEntryComment(type, commentEditor.schoolKey, commentEditor.slotKey, trimmed);
     });
+  }
+
+  function openSchoolListPopup(slot: { key: string; subLabel: string | null }, groupLabel: string) {
+    const label = `${groupLabel}${slot.subLabel ? " / " + slot.subLabel : ""}`;
+    const names = schools
+      .filter((school) => checked.has(cellKey(school.key, slot.key)))
+      .map((school) => (school.ort && school.ort !== school.name ? `${school.name} · ${school.ort}` : school.name));
+    setSchoolListPopup({ label, names });
   }
 
   function saveSchoolEdit(school: OverviewSchool, name: string, ort: string) {
@@ -301,11 +310,21 @@ export function OverviewTable({
             >
               Summe
             </td>
-            {flatSlots.map((slot) => (
-              <td key={slot.key} className="border-r border-t border-slate-200 text-center">
-                {sums.get(slot.key) ?? 0}
-              </td>
-            ))}
+            {flatSlots.map((slot) => {
+              const groupLabel = groups.find((g) => g.items.some((it) => it.key === slot.key))?.groupLabel ?? "";
+              return (
+                <td key={slot.key} className="border-r border-t border-slate-200 p-0 text-center">
+                  <button
+                    type="button"
+                    onClick={() => openSchoolListPopup(slot, groupLabel)}
+                    title="Klicken, um die gemeldeten Schulen zu sehen"
+                    className="h-full w-full py-1.5 hover:bg-slate-200"
+                  >
+                    {sums.get(slot.key) ?? 0}
+                  </button>
+                </td>
+              );
+            })}
             <td className="border-t border-slate-200 text-center">{grandTotal}</td>
           </tr>
         </tfoot>
@@ -318,6 +337,13 @@ export function OverviewTable({
         initialValue={commentEditor.value}
         onSave={saveCommentEditor}
         onCancel={() => setCommentEditor(null)}
+      />
+    ) : null}
+    {schoolListPopup ? (
+      <SchoolListModal
+        label={schoolListPopup.label}
+        names={schoolListPopup.names}
+        onClose={() => setSchoolListPopup(null)}
       />
     ) : null}
     </>
@@ -420,6 +446,38 @@ function CommentEditorModal({
             className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SchoolListModal({ label, names, onClose }: { label: string; names: string[]; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-semibold text-slate-900">Angemeldete Schulen</h3>
+        <p className="mt-0.5 text-sm text-slate-500">{label}</p>
+        {names.length > 0 ? (
+          <ul className="mt-3 max-h-80 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-slate-700">
+            {names.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">Noch keine Schule angemeldet.</p>
+        )}
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+          >
+            Schließen
           </button>
         </div>
       </div>
