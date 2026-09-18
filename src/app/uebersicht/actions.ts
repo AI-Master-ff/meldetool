@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { isAuthed, destroySession } from "@/lib/auth";
 import type { SchoolType } from "@/lib/schools";
 import { getSchools, updateSchool } from "@/lib/dbSchools";
-import { findSlotId, setEntry, setEntryComment } from "@/lib/entries";
+import { findSlotId, setEntry, setEntryComment, setEntryPlacement } from "@/lib/entries";
 import { setRegistrationLocked } from "@/lib/settings";
 import { setRegionalFinalSlots } from "@/lib/dbSlots";
 import { redirect } from "next/navigation";
@@ -68,6 +68,31 @@ export async function updateEntryComment(
   }
 
   await setEntryComment(school.id, slotId, comment);
+  return { ok: true };
+}
+
+export async function updateEntryPlacement(
+  type: SchoolType,
+  schoolKeyValue: string,
+  slotKeyValue: string,
+  placement: number | null,
+): Promise<{ ok: boolean }> {
+  if (!(await isAuthed())) {
+    throw new Error("Nicht angemeldet");
+  }
+
+  const schools = await getSchools(type);
+  const school = schools.find((s) => `${s.name}::${s.ort ?? ""}` === schoolKeyValue);
+  if (!school) {
+    throw new Error("Unbekannte Schule");
+  }
+  const { groupLabel, subLabel } = parseSlotKey(slotKeyValue);
+  const slotId = await findSlotId(type, groupLabel, subLabel);
+  if (!slotId) {
+    throw new Error("Wettkampf nicht gefunden");
+  }
+
+  await setEntryPlacement(school.id, slotId, placement);
   return { ok: true };
 }
 

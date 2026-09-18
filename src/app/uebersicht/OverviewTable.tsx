@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { toggleEntry, updateEntryComment, updateRegionalFinalCount, updateSchoolAction } from "./actions";
+import {
+  toggleEntry,
+  updateEntryComment,
+  updateEntryPlacement,
+  updateRegionalFinalCount,
+  updateSchoolAction,
+} from "./actions";
 import type { SchoolType } from "@/lib/schools";
 
 export interface OverviewSchool {
@@ -34,6 +40,7 @@ export function OverviewTable({
   groups,
   initialChecked,
   initialComments,
+  initialPlacements = [],
   initialRegionalFinal = [],
   showRegionalFinalRow = false,
 }: {
@@ -42,11 +49,15 @@ export function OverviewTable({
   groups: OverviewSlotGroup[];
   initialChecked: string[];
   initialComments: [string, string][];
+  initialPlacements?: [string, number][];
   initialRegionalFinal?: [string, number][];
   showRegionalFinalRow?: boolean;
 }) {
   const [checked, setChecked] = useState<Set<string>>(() => new Set(initialChecked));
   const [comments, setComments] = useState<Map<string, string>>(() => new Map(initialComments));
+  const [placements, setPlacements] = useState<Map<string, string>>(
+    () => new Map(initialPlacements.map(([key, value]) => [key, String(value)])),
+  );
   const [regionalFinal, setRegionalFinal] = useState<Map<string, string>>(
     () => new Map(initialRegionalFinal.map(([key, value]) => [key, String(value)])),
   );
@@ -61,7 +72,7 @@ export function OverviewTable({
     label: string;
     value: string;
   } | null>(null);
-  const [schoolListPopup, setSchoolListPopup] = useState<{ label: string; names: string[] } | null>(null);
+  const [placementPopup, setPlacementPopup] = useState<{ label: string; slotKey: string } | null>(null);
   const [competitionListPopup, setCompetitionListPopup] = useState<{ schoolName: string; items: string[] } | null>(
     null,
   );
@@ -140,12 +151,30 @@ export function OverviewTable({
     });
   }
 
-  function openSchoolListPopup(slot: { key: string; subLabel: string | null }, groupLabel: string) {
+  function openPlacementPopup(slot: { key: string; subLabel: string | null }, groupLabel: string) {
     const label = `${groupLabel}${slot.subLabel ? " / " + slot.subLabel : ""}`;
-    const names = schools
-      .filter((school) => checked.has(cellKey(school.key, slot.key)))
-      .map((school) => (school.ort && school.ort !== school.name ? `${school.name} · ${school.ort}` : school.name));
-    setSchoolListPopup({ label, names });
+    setPlacementPopup({ label, slotKey: slot.key });
+  }
+
+  function updatePlacementValue(schoolKey: string, slotKey: string, rawValue: string) {
+    const ck = cellKey(schoolKey, slotKey);
+    setPlacements((prev) => {
+      const copy = new Map(prev);
+      if (rawValue.trim() === "") copy.delete(ck);
+      else copy.set(ck, rawValue);
+      return copy;
+    });
+  }
+
+  function savePlacement(schoolKey: string, slotKey: string, rawValue: string) {
+    updatePlacementValue(schoolKey, slotKey, rawValue);
+    const trimmed = rawValue.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && !Number.isFinite(parsed)) return;
+
+    startTransition(async () => {
+      await updateEntryPlacement(type, schoolKey, slotKey, parsed);
+    });
   }
 
   function openCompetitionListPopup(school: OverviewSchool) {
@@ -211,6 +240,11 @@ export function OverviewTable({
   }, [checked, schools, flatSlots]);
 
   const grandTotal = useMemo(() => Array.from(rowSums.values()).reduce((a, b) => a + b, 0), [rowSums]);
+
+  const placementSchools = useMemo(() => {
+    if (!placementPopup) return [];
+    return schools.filter((school) => checked.has(cellKey(school.key, placementPopup.slotKey)));
+  }, [placementPopup, schools, checked]);
 
   return (
     <>
@@ -375,8 +409,8 @@ export function OverviewTable({
                 <td key={slot.key} className="border-r border-t border-slate-200 p-0 text-center">
                   <button
                     type="button"
-                    onClick={() => openSchoolListPopup(slot, groupLabel)}
-                    title="Klicken, um die gemeldeten Schulen zu sehen"
+                    onClick={() => openPlacementPopup(slot, groupLabel)}
+                    title="Klicken, um die gemeldeten Schulen zu sehen und die Platzierung einzutragen"
                     className="h-full w-full py-1.5 hover:bg-slate-200"
                   >
                     {sums.get(slot.key) ?? 0}
@@ -428,13 +462,15 @@ export function OverviewTable({
         onCancel={() => setCommentEditor(null)}
       />
     ) : null}
-    {schoolListPopup ? (
-      <ItemListModal
-        title="Angemeldete Schulen"
-        subtitle={schoolListPopup.label}
-        items={schoolListPopup.names}
-        emptyText="Noch keine Schule angemeldet."
-        onClose={() => setSchoolListPopup(null)}
+    {placementPopup ? (
+      <PlacementModal
+        label={placementPopup.label}
+        slotKey={placementPopup.slotKey}
+        schools={placementSchools}
+        placements={placements}
+        onChange={(schoolKey, value) => updatePlacementValue(schoolKey, placementPopup.slotKey, value)}
+        onSave={(schoolKey, value) => savePlacement(schoolKey, placementPopup.slotKey, value)}
+        onClose={() => setPlacementPopup(null)}
       />
     ) : null}
     {competitionListPopup ? (
@@ -546,6 +582,96 @@ function CommentEditorModal({
             className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function schoolDisplayName(school: OverviewSchool): string {
+  return school.ort && school.ort !== school.name ? `${school.name} · ${school.ort}` : school.name;
+}
+
+function PlacementModal({
+  label,
+  slotKey,
+  schools,
+  placements,
+  onChange,
+  onSave,
+  onClose,
+}: {
+  label: string;
+  slotKey: string;
+  schools: OverviewSchool[];
+  placements: Map<string, string>;
+  onChange: (schoolKey: string, value: string) => void;
+  onSave: (schoolKey: string, value: string) => void;
+  onClose: () => void;
+}) {
+  const ranking = useMemo(() => {
+    return schools
+      .map((school) => {
+        const raw = placements.get(`${school.key}||${slotKey}`) ?? "";
+        const value = raw.trim() === "" ? null : Number(raw);
+        return { school, value };
+      })
+      .filter(
+        (entry): entry is { school: OverviewSchool; value: number } =>
+          entry.value !== null && Number.isFinite(entry.value),
+      )
+      .sort((a, b) => a.value - b.value);
+  }, [schools, placements, slotKey]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-slate-900">Angemeldete Schulen</h3>
+        <p className="mt-0.5 text-sm text-slate-500">{label}</p>
+        {schools.length > 0 ? (
+          <ul className="mt-3 max-h-64 space-y-1.5 overflow-y-auto text-sm text-slate-700">
+            {schools.map((school) => (
+              <li key={school.key} className="flex items-center justify-between gap-2">
+                <span className="truncate">{schoolDisplayName(school)}</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={placements.get(`${school.key}||${slotKey}`) ?? ""}
+                  onChange={(e) => onChange(school.key, e.target.value)}
+                  onBlur={(e) => onSave(school.key, e.target.value)}
+                  placeholder="Platz"
+                  className="w-16 shrink-0 rounded border border-slate-300 px-1.5 py-1 text-center focus:border-blue-400 focus:outline-none"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">Noch keine Schule angemeldet.</p>
+        )}
+
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <h4 className="text-sm font-semibold text-slate-900">Platzierungsliste</h4>
+          {ranking.length > 0 ? (
+            <ol className="mt-2 space-y-1 text-sm text-slate-700">
+              {ranking.map(({ school, value }) => (
+                <li key={school.key}>
+                  {value}. {schoolDisplayName(school)}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">Noch keine Platzierung eingetragen.</p>
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+          >
+            Schließen
           </button>
         </div>
       </div>

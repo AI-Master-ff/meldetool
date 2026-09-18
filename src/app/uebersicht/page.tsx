@@ -3,7 +3,7 @@ import { schoolKey } from "@/lib/schools";
 import { groupSlots, slotKey } from "@/lib/slots";
 import { getSlots } from "@/lib/dbSlots";
 import { getSchools } from "@/lib/dbSchools";
-import { getCheckedKeys, getEntryComments } from "@/lib/entries";
+import { getCheckedKeys, getEntryComments, getEntryPlacements } from "@/lib/entries";
 import { isRegistrationLocked } from "@/lib/settings";
 import { OverviewTable } from "./OverviewTable";
 import { RegistrationLockToggle } from "./RegistrationLockToggle";
@@ -12,11 +12,12 @@ import { logoutAction } from "./actions";
 export const dynamic = "force-dynamic";
 
 async function buildSection(type: "GS" | "WF") {
-  const [dbSchools, dbSlots, checkedSet, entryComments] = await Promise.all([
+  const [dbSchools, dbSlots, checkedSet, entryComments, entryPlacements] = await Promise.all([
     getSchools(type),
     getSlots(type),
     getCheckedKeys(type),
     getEntryComments(type),
+    getEntryPlacements(type),
   ]);
   const schools = dbSchools.map((s) => ({
     key: schoolKey(s),
@@ -36,6 +37,7 @@ async function buildSection(type: "GS" | "WF") {
     initialChecked: Array.from(checkedSet),
     initialComments: Array.from(entryComments.entries()),
     initialRegionalFinal,
+    initialPlacements: Array.from(entryPlacements.entries()),
   };
 }
 
@@ -78,6 +80,7 @@ export default async function Page() {
           groups={gs.groups}
           initialChecked={gs.initialChecked}
           initialComments={gs.initialComments}
+          initialPlacements={gs.initialPlacements}
         />
       </section>
 
@@ -91,6 +94,7 @@ export default async function Page() {
           groups={wf.groups}
           initialChecked={wf.initialChecked}
           initialComments={wf.initialComments}
+          initialPlacements={wf.initialPlacements}
           initialRegionalFinal={wf.initialRegionalFinal}
           showRegionalFinalRow
         />
