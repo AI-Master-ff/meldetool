@@ -25,7 +25,7 @@ async function buildSection(type: "GS" | "WF") {
   }));
   const groups = groupSlots(dbSlots).map((g) => ({
     groupLabel: g.groupLabel,
-    items: g.items.map((it) => ({ key: slotKey(it), subLabel: it.subLabel })),
+    items: g.items.map((it) => ({ key: slotKey(it), subLabel: it.subLabel, meta: it.meta })),
   }));
   const initialRegionalFinal: [string, number][] = dbSlots
     .filter((s) => s.regionalFinalSlots !== null)

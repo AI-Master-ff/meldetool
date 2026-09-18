@@ -12,7 +12,7 @@ export interface OverviewSchool {
 
 export interface OverviewSlotGroup {
   groupLabel: string;
-  items: { key: string; subLabel: string | null }[];
+  items: { key: string; subLabel: string | null; meta: string }[];
 }
 
 const SCHOOL_COL_WIDTH = 220;
@@ -51,6 +51,9 @@ export function OverviewTable({
     value: string;
   } | null>(null);
   const [schoolListPopup, setSchoolListPopup] = useState<{ label: string; names: string[] } | null>(null);
+  const [competitionListPopup, setCompetitionListPopup] = useState<{ schoolName: string; items: string[] } | null>(
+    null,
+  );
 
   const flatSlots = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
@@ -132,6 +135,17 @@ export function OverviewTable({
       .filter((school) => checked.has(cellKey(school.key, slot.key)))
       .map((school) => (school.ort && school.ort !== school.name ? `${school.name} · ${school.ort}` : school.name));
     setSchoolListPopup({ label, names });
+  }
+
+  function openCompetitionListPopup(school: OverviewSchool) {
+    const items = flatSlots
+      .filter((slot) => checked.has(cellKey(school.key, slot.key)))
+      .map((slot) => {
+        const groupLabel = groups.find((g) => g.items.some((it) => it.key === slot.key))?.groupLabel ?? "";
+        const label = `${groupLabel}${slot.subLabel ? " / " + slot.subLabel : ""}`;
+        return slot.meta ? `${label} – ${slot.meta}` : label;
+      });
+    setCompetitionListPopup({ schoolName: school.name, items });
   }
 
   function saveRegionalFinal(slotKey: string, rawValue: string) {
@@ -319,8 +333,15 @@ export function OverviewTable({
                     </td>
                   );
                 })}
-                <td className="border-b border-slate-200 text-center font-semibold text-slate-700">
-                  {rowSums.get(school.key) ?? 0}
+                <td className="border-b border-slate-200 p-0 text-center font-semibold text-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => openCompetitionListPopup(school)}
+                    title="Klicken, um die Meldungen dieser Schule zu sehen"
+                    className="h-full w-full py-1.5 hover:bg-slate-200"
+                  >
+                    {rowSums.get(school.key) ?? 0}
+                  </button>
                 </td>
               </tr>
             );
@@ -394,10 +415,21 @@ export function OverviewTable({
       />
     ) : null}
     {schoolListPopup ? (
-      <SchoolListModal
-        label={schoolListPopup.label}
-        names={schoolListPopup.names}
+      <ItemListModal
+        title="Angemeldete Schulen"
+        subtitle={schoolListPopup.label}
+        items={schoolListPopup.names}
+        emptyText="Noch keine Schule angemeldet."
         onClose={() => setSchoolListPopup(null)}
+      />
+    ) : null}
+    {competitionListPopup ? (
+      <ItemListModal
+        title="Meldungen dieser Schule"
+        subtitle={competitionListPopup.schoolName}
+        items={competitionListPopup.items}
+        emptyText="Noch keine Meldung."
+        onClose={() => setCompetitionListPopup(null)}
       />
     ) : null}
     </>
@@ -507,23 +539,35 @@ function CommentEditorModal({
   );
 }
 
-function SchoolListModal({ label, names, onClose }: { label: string; names: string[]; onClose: () => void }) {
+function ItemListModal({
+  title,
+  subtitle,
+  items,
+  emptyText,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  items: string[];
+  emptyText: string;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
       <div
         className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="font-semibold text-slate-900">Angemeldete Schulen</h3>
-        <p className="mt-0.5 text-sm text-slate-500">{label}</p>
-        {names.length > 0 ? (
+        <h3 className="font-semibold text-slate-900">{title}</h3>
+        <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
+        {items.length > 0 ? (
           <ul className="mt-3 max-h-80 list-disc space-y-1 overflow-y-auto pl-5 text-sm text-slate-700">
-            {names.map((name) => (
-              <li key={name}>{name}</li>
+            {items.map((item) => (
+              <li key={item}>{item}</li>
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-slate-500">Noch keine Schule angemeldet.</p>
+          <p className="mt-3 text-sm text-slate-500">{emptyText}</p>
         )}
         <div className="mt-4 flex justify-end">
           <button
