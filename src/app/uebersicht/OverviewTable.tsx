@@ -17,6 +17,17 @@ export interface OverviewSlotGroup {
 
 const SCHOOL_COL_WIDTH = 220;
 
+const WEEKDAY_TOKENS = new Set(["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]);
+
+// Entfernt ein einzelnes Wochentags-Kürzel (z.B. "Mi") aus "mixed · 26.11.25 ·
+// Mi · Pirna", damit die Kopiervorlage für Bestätigungsmails knapper bleibt.
+function formatMetaForSummary(meta: string): string {
+  return meta
+    .split(" · ")
+    .filter((part) => !WEEKDAY_TOKENS.has(part.trim()))
+    .join(" · ");
+}
+
 export function OverviewTable({
   type,
   schools,
@@ -142,8 +153,11 @@ export function OverviewTable({
       .filter((slot) => checked.has(cellKey(school.key, slot.key)))
       .map((slot) => {
         const groupLabel = groups.find((g) => g.items.some((it) => it.key === slot.key))?.groupLabel ?? "";
-        const label = `${groupLabel}${slot.subLabel ? " / " + slot.subLabel : ""}`;
-        return slot.meta ? `${label} – ${slot.meta}` : label;
+        const meaningfulSubLabel =
+          slot.subLabel && slot.subLabel.trim().toLowerCase() !== "teilnahme" ? slot.subLabel : null;
+        const label = `${groupLabel}${meaningfulSubLabel ? " / " + meaningfulSubLabel : ""}`;
+        const meta = formatMetaForSummary(slot.meta);
+        return meta ? `${label} – ${meta}` : label;
       });
     setCompetitionListPopup({ schoolName: school.name, items });
   }
