@@ -6,6 +6,7 @@ import type { SchoolType } from "@/lib/schools";
 import { getSchools, updateSchool } from "@/lib/dbSchools";
 import { findSlotId, setEntry, setEntryComment } from "@/lib/entries";
 import { setRegistrationLocked } from "@/lib/settings";
+import { setRegionalFinalSlots } from "@/lib/dbSlots";
 import { redirect } from "next/navigation";
 
 export async function logoutAction(): Promise<void> {
@@ -93,6 +94,25 @@ export async function updateSchoolAction(
   revalidatePath("/uebersicht");
   revalidatePath("/melden/grundschule");
   revalidatePath("/melden/weiterfuehrend");
+  return { ok: true };
+}
+
+export async function updateRegionalFinalCount(
+  type: SchoolType,
+  slotKeyValue: string,
+  value: number | null,
+): Promise<{ ok: boolean }> {
+  if (!(await isAuthed())) {
+    throw new Error("Nicht angemeldet");
+  }
+
+  const { groupLabel, subLabel } = parseSlotKey(slotKeyValue);
+  const slotId = await findSlotId(type, groupLabel, subLabel);
+  if (!slotId) {
+    throw new Error("Wettkampf nicht gefunden");
+  }
+
+  await setRegionalFinalSlots(slotId, value);
   return { ok: true };
 }
 

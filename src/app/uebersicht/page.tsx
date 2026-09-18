@@ -27,11 +27,15 @@ async function buildSection(type: "GS" | "WF") {
     groupLabel: g.groupLabel,
     items: g.items.map((it) => ({ key: slotKey(it), subLabel: it.subLabel })),
   }));
+  const initialRegionalFinal: [string, number][] = dbSlots
+    .filter((s) => s.regionalFinalSlots !== null)
+    .map((s) => [slotKey(s), s.regionalFinalSlots as number]);
   return {
     schools,
     groups,
     initialChecked: Array.from(checkedSet),
     initialComments: Array.from(entryComments.entries()),
+    initialRegionalFinal,
   };
 }
 
@@ -87,6 +91,8 @@ export default async function Page() {
           groups={wf.groups}
           initialChecked={wf.initialChecked}
           initialComments={wf.initialComments}
+          initialRegionalFinal={wf.initialRegionalFinal}
+          showRegionalFinalRow
         />
       </section>
     </main>

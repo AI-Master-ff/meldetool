@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { toggleEntry, updateEntryComment, updateSchoolAction } from "./actions";
+import { toggleEntry, updateEntryComment, updateRegionalFinalCount, updateSchoolAction } from "./actions";
 import type { SchoolType } from "@/lib/schools";
 
 export interface OverviewSchool {
@@ -23,15 +23,22 @@ export function OverviewTable({
   groups,
   initialChecked,
   initialComments,
+  initialRegionalFinal = [],
+  showRegionalFinalRow = false,
 }: {
   type: SchoolType;
   schools: OverviewSchool[];
   groups: OverviewSlotGroup[];
   initialChecked: string[];
   initialComments: [string, string][];
+  initialRegionalFinal?: [string, number][];
+  showRegionalFinalRow?: boolean;
 }) {
   const [checked, setChecked] = useState<Set<string>>(() => new Set(initialChecked));
   const [comments, setComments] = useState<Map<string, string>>(() => new Map(initialComments));
+  const [regionalFinal, setRegionalFinal] = useState<Map<string, string>>(
+    () => new Map(initialRegionalFinal.map(([key, value]) => [key, String(value)])),
+  );
   const [, startTransition] = useTransition();
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const [editingSchool, setEditingSchool] = useState<string | null>(null);
@@ -125,6 +132,23 @@ export function OverviewTable({
       .filter((school) => checked.has(cellKey(school.key, slot.key)))
       .map((school) => (school.ort && school.ort !== school.name ? `${school.name} · ${school.ort}` : school.name));
     setSchoolListPopup({ label, names });
+  }
+
+  function saveRegionalFinal(slotKey: string, rawValue: string) {
+    const trimmed = rawValue.trim();
+    setRegionalFinal((prev) => {
+      const copy = new Map(prev);
+      if (trimmed === "") copy.delete(slotKey);
+      else copy.set(slotKey, trimmed);
+      return copy;
+    });
+
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && !Number.isFinite(parsed)) return;
+
+    startTransition(async () => {
+      await updateRegionalFinalCount(type, slotKey, parsed);
+    });
   }
 
   function saveSchoolEdit(school: OverviewSchool, name: string, ort: string) {
@@ -327,6 +351,36 @@ export function OverviewTable({
             })}
             <td className="border-t border-slate-200 text-center">{grandTotal}</td>
           </tr>
+          {showRegionalFinalRow ? (
+            <tr className="bg-indigo-50 font-semibold text-indigo-900">
+              <td
+                style={{ width: SCHOOL_COL_WIDTH }}
+                className="sticky left-0 z-10 border-r border-t border-indigo-200 bg-indigo-50 px-3 py-1.5"
+              >
+                Regionalfinale
+              </td>
+              {flatSlots.map((slot) => (
+                <td key={slot.key} className="border-r border-t border-indigo-200 p-0.5 text-center">
+                  <input
+                    type="number"
+                    min={0}
+                    value={regionalFinal.get(slot.key) ?? ""}
+                    onChange={(e) =>
+                      setRegionalFinal((prev) => {
+                        const copy = new Map(prev);
+                        copy.set(slot.key, e.target.value);
+                        return copy;
+                      })
+                    }
+                    onBlur={(e) => saveRegionalFinal(slot.key, e.target.value)}
+                    placeholder="—"
+                    className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center text-indigo-900 hover:border-indigo-300 focus:border-indigo-400 focus:bg-white focus:outline-none"
+                  />
+                </td>
+              ))}
+              <td className="border-t border-indigo-200" />
+            </tr>
+          ) : null}
         </tfoot>
       </table>
     </div>

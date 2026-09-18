@@ -10,6 +10,7 @@ export interface DbSlot {
   meta: string;
   sortOrder: number;
   notes: string;
+  regionalFinalSlots: number | null;
 }
 
 interface SlotRow {
@@ -21,6 +22,7 @@ interface SlotRow {
   meta: string | null;
   sort_order: number;
   notes: string | null;
+  regional_final_slots: number | null;
 }
 
 function toDbSlot(row: SlotRow): DbSlot {
@@ -33,10 +35,12 @@ function toDbSlot(row: SlotRow): DbSlot {
     meta: row.meta ?? "",
     sortOrder: row.sort_order,
     notes: row.notes ?? "",
+    regionalFinalSlots: row.regional_final_slots,
   };
 }
 
-const SELECT_FIELDS = "id, type, section, group_label, sub_label, meta, sort_order, notes";
+const SELECT_FIELDS =
+  "id, type, section, group_label, sub_label, meta, sort_order, notes, regional_final_slots";
 
 export async function getSlots(type?: SchoolType): Promise<DbSlot[]> {
   const res = type
@@ -48,7 +52,7 @@ export async function getSlots(type?: SchoolType): Promise<DbSlot[]> {
   return res.rows.map(toDbSlot);
 }
 
-export async function createSlot(input: Omit<DbSlot, "id">): Promise<void> {
+export async function createSlot(input: Omit<DbSlot, "id" | "regionalFinalSlots">): Promise<void> {
   await pool.query(
     `INSERT INTO slots (type, section, group_label, sub_label, meta, sort_order, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -56,7 +60,10 @@ export async function createSlot(input: Omit<DbSlot, "id">): Promise<void> {
   );
 }
 
-export async function updateSlot(id: number, input: Omit<DbSlot, "id" | "type">): Promise<void> {
+export async function updateSlot(
+  id: number,
+  input: Omit<DbSlot, "id" | "type" | "regionalFinalSlots">,
+): Promise<void> {
   await pool.query(
     `UPDATE slots SET section = $2, group_label = $3, sub_label = $4, meta = $5, sort_order = $6, notes = $7 WHERE id = $1`,
     [id, input.section, input.groupLabel, input.subLabel, input.meta, input.sortOrder, input.notes],
@@ -65,4 +72,8 @@ export async function updateSlot(id: number, input: Omit<DbSlot, "id" | "type">)
 
 export async function deleteSlot(id: number): Promise<void> {
   await pool.query(`DELETE FROM slots WHERE id = $1`, [id]);
+}
+
+export async function setRegionalFinalSlots(id: number, value: number | null): Promise<void> {
+  await pool.query(`UPDATE slots SET regional_final_slots = $2 WHERE id = $1`, [id, value]);
 }

@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
 INSERT INTO app_settings (key, value) VALUES ('registration_locked', 'false') ON CONFLICT (key) DO NOTHING;
 
 ALTER TABLE slots ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE slots ADD COLUMN IF NOT EXISTS regional_final_slots INT;
 `;
 
 export async function runSeed(pool: Pool): Promise<{ schoolCount: number; slotCount: number }> {
